@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <title>Document</title>
+    <style type="text/tailwindcss">
+        @theme {
+          --color-bar: #2375A5;
+        }
+      </style>
+</head>
+<body>
+  <nav class="bg-bar shadow-lg fixed w-full z-10">
+    <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+      <div class="relative flex items-center justify-between h-16">
+        <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+          <div class="flex-shrink-0 flex items-center">
+            <img class="block h-8 w-auto" src="https://tailwindflex.com/images/logo.svg" alt="Logo">
+            <span class="ml-2 text-xl font-bold text-white">Navbar</span>
+          </div>
+          <div class="hidden sm:block sm:ml-6">
+            <div class="flex space-x-4">
+              <a href="index.html" class="text-white hover:text-black hover:bg-bar px-3 py-2 rounded-md text-sm font-medium">Home</a>
+              <a href="riwayat-transaksi.html" class="text-white hover:text-black hover:bg-bar px-3 py-2 rounded-md text-sm font-medium">Riwayat Transaksi</a>
+            </div>
+          </div>
+        </div>
+  
+        <div class="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
+          <!-- Desktop User Info -->
+          <div class="hidden sm:flex sm:items-center" id="user-info-desktop">
+            <button class="relative text-white hover:text-black px-3 py-2 rounded-md text-sm font-medium">
+              <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.992 2.992 0 0019 14V9a7 7 0 10-14 0v5a2.992 2.992 0 00-.595 1.595L3 17h5m4 0h-4" />
+              </svg>
+              <span class="absolute top-0 right-0 inline-flex items-center justify-center w-3 h-3 bg-red-500 rounded-full"></span>
+            </button>
+            <img src="path/to/avatar.jpg" alt="Avatar" class="h-8 w-8 rounded-full ml-4" id="user-avatar-desktop">
+          </div>
+  
+          <!-- Desktop Auth Buttons -->
+          <div class="hidden sm:flex" id="auth-buttons-desktop">
+            <a href="login.html" class="text-white hover:text-black px-3 py-2 rounded-md text-sm font-medium">Login</a>
+            <a href="daftar.html" class="ml-4 bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700">Sign Up</a>
+          </div>
+  
+          <!-- Mobile menu button -->
+          <div class="flex sm:hidden">
+            <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-white hover:text-black hover:bg-gray-700 focus:outline-none" id="mobile-menu-button" aria-expanded="false">
+              <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Mobile Menu -->
+    <div class="hidden sm:hidden" id="mobile-menu">
+      <div class="px-2 pt-2 pb-3 space-y-1">
+        <a href="index.html" class="text-white hover:text-black hover:bg-bar block px-3 py-2 rounded-md text-base font-medium">Home</a>
+        <a href="riwayat-transaksi.html" class="text-white hover:text-black hover:bg-bar block px-3 py-2 rounded-md text-base font-medium">Riwayat Transaksi</a>
+      </div>
+  
+      <!-- Mobile User Info -->
+      <div class="border-t border-gray-700 pt-4 pb-3" id="user-info-mobile">
+        <div class="flex items-center px-5">
+          <img class="h-10 w-10 rounded-full" src="path/to/avatar.jpg" alt="User Avatar" id="user-avatar-mobile">
+          <div class="ml-3">
+            <div class="text-base font-medium leading-none text-white">Username</div>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Mobile Auth Buttons -->
+      <div class="px-5 pt-4 pb-3 flex flex-col space-y-2" id="auth-buttons-mobile">
+        <a href="login.html" class="block w-full text-center text-white bg-gray-700 px-3 py-2 rounded-md text-base font-medium">Login</a>
+        <a href="daftar.html" class="block w-full text-center bg-indigo-600 text-white px-3 py-2 rounded-md text-base font-medium">Sign Up</a>
+      </div>
+    </div>
+  </nav>
+    <div class="w-full">
+        <div class="w-full">
+          <section class="relative w-full flex items-center justify-center text-center">
+            <div class="relative w-full">
+              <img class="w-full h-100 object-cover rounded-md" src="https://images.unsplash.com/photo-1680725779155-456faadefa26" alt="Random image">
+              <div class="absolute inset-0 bg-gray-700 opacity-60 rounded-md"></div>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <h2 class="text-white text-3xl font-bold">Notification</h2>
+              </div>
+            </div>
+          </section>
+        </div>
+    </div>
+    <div class="w-full h-full py-10 flex flex-col gap-4 items-center justify-center bg-gray-900 dark:bg-white">
+
+        <div class="md:text-4xl sm:text-3xl text-2xl text-center font-serif font-extrabold border-b-2 dark:border-blue-500 rounded-b-md mb-6 border-yellow-500 text-white dark:text-black">
+            Notifications
+        </div>
+    
+        <!-- 1 -->
+        <div class="sm:w-[70%] w-[94%] mx-auto dark:bg-gray-300 bg-gray-700 p-4 rounded-md flex sm:gap-4 gap-2 items-center justify-center">
+            <div class="w-[5rem] h-[5rem] flex items-center justify-center bg-blue-400 dark:bg-teal-400 rounded-full">
+                <!-- Icon instead of image -->
+                <i class="fas fa-user-circle text-white text-4xl"></i>
+            </div>
+            <div class="w-[80%] flex flex-col gap-1">
+                <div class="text-lg font-semibold font-serif text-white dark:text-black">Samuel Abera</div>
+                <p class="text-sm dark:text-gray-600 text-gray-300">Lorem ipsum dolor sit amet consectetur adipisicing elit. Labore reiciendis earum quasi</p>
+                <p class="text-[12px] text-semibold dark:text-gray-700 text-gray-400 text-right">a few moments ago</p>
+            </div>
+        </div>
+    
+        <!-- 2 -->
+        <div class="sm:w-[70%] w-[94%] mx-auto dark:bg-gray-300 bg-gray-700 p-4 rounded-md flex sm:gap-4 gap-2 items-center justify-center">
+            <div class="w-[5rem] h-[5rem] flex items-center justify-center bg-blue-400 dark:bg-sky-700 rounded-full">
+                <!-- Icon instead of image -->
+                <i class="fas fa-user-circle text-white text-4xl"></i>
+            </div>
+            <div class="w-[80%] flex flex-col gap-1">
+                <div class="text-lg font-semibold font-serif text-white dark:text-black">Sammy Tg</div>
+                <p class="text-sm dark:text-gray-600 text-gray-300">Lorem ipsum dolor sit amet consectetur adipisicing elit. Labore reiciendis earum quasi</p>
+                <p class="text-[12px] text-semibold dark:text-gray-700 text-gray-400 text-right">7 minutes ago</p>
+            </div>
+        </div>
+    
+        <!-- 3 -->
+        <div class="sm:w-[70%] w-[94%] mx-auto dark:bg-gray-300 bg-gray-700 p-4 rounded-md flex sm:gap-4 gap-2 items-center justify-center">
+            <div class="w-[5rem] h-[5rem] flex items-center justify-center bg-blue-400 dark:bg-purple-700 rounded-full">
+                <!-- Icon instead of image -->
+                <i class="fas fa-user-circle text-white text-4xl"></i>
+            </div>
+            <div class="w-[80%] flex flex-col gap-1">
+                <div class="text-lg font-semibold font-serif text-white dark:text-black">Sammy Ab</div>
+                <p class="text-sm dark:text-gray-600 text-gray-300">Lorem ipsum dolor sit amet consectetur adipisicing elit. Labore reiciendis earum quasi</p>
+                <p class="text-[12px] text-semibold dark:text-gray-700 text-gray-400 text-right">2 days ago</p>
+            </div>
+        </div>
+    </div>  
+    <footer class="mt-20 xl:mt-32 mx-auto w-full relative text-center bg-bar text-white">
+        <div class="px-6 py-8 md:py-14 xl:pt-20 xl:pb-12 text-center">
+          <h2 class="font-bold text-3xl xl:text-4xl leading-snug">Kami menawarkan berbagai pilihan paket <br> laundry dengan harga terbaik dan layanan <br> cuci berkualitas. dapatkan kemudahan mencuci <br> pakaian tanpa ribet!</h2>
+          <p class="text-white py-6">Pilih Paket Laundry Sesuai Kebutuhan Anda</p>
+          <div class="mt-8 xl:mt-10">
+            <nav class="flex flex-wrap justify-center text-lg font-medium">
+              <div class="px-5 py-2"><a href="#">Home</a></div>
+              <div class="px-5 py-2"><a href="#">Daftar Paket Layanan</a></div>
+              <div class="px-5 py-2"><a href="#">Riwayat Transaksi</a></div>
+              <div class="px-5 py-2"><a href="#">Terms</a></div>
+              <div class="px-5 py-2"><a href="#">Twitter</a></div>
+            </nav>
+            <p class="mt-7 text-base">© 2023 Copyright, Bunda Laundry</p>
+          </div>
+        </div>
+    </footer>  
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        const isLoggedIn = sessionStorage.getItem('isLoggedIn'); // 'true' berarti user login
+      
+        const authButtonsDesktop = document.getElementById('auth-buttons-desktop');
+        const authButtonsMobile = document.getElementById('auth-buttons-mobile');
+        const userInfoDesktop = document.getElementById('user-info-desktop');
+        const userInfoMobile = document.getElementById('user-info-mobile');
+      
+        console.log('isLoggedIn:', isLoggedIn);
+      
+        if (isLoggedIn) {
+          // User logged in
+          authButtonsDesktop.classList.add('hidden');
+          authButtonsMobile.classList.add('hidden');
+          userInfoDesktop.classList.remove('hidden');
+          userInfoMobile.classList.remove('hidden');
+        } else {
+          // User not logged in
+          authButtonsDesktop.classList.remove('hidden');
+          authButtonsMobile.classList.remove('hidden');
+          userInfoDesktop.classList.add('hidden');
+          userInfoMobile.classList.add('hidden');
+        }
+      
+        // Toggle mobile menu
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+      
+        mobileMenuButton.addEventListener('click', function () {
+          const expanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+          mobileMenuButton.setAttribute('aria-expanded', String(!expanded));
+          mobileMenu.classList.toggle('hidden');
+        });
+      });
+    </script>
+</body>
+</html>
