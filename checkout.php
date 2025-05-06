@@ -1,90 +1,74 @@
 <?php
 // Koneksi ke database
 include('config.php');  // Pastikan koneksi sudah dibuat sebelumnya
+include('query.php');
 session_start();
 
 $errors = [];
-$pakets = []; // Ambil data paket dari database
 
-// Ambil data paket dari database
-$query = "SELECT * FROM paket";
-$stmt = $pdo->prepare($query);
-$stmt->execute();
-$pakets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+try {
+    $pakets = $pdo->query("SELECT * FROM paket")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Gagal mengambil data paket: " . $e->getMessage());
+}
 
-// Proses form saat di-submit
+// Validasi jika data kosong
+if (!$pakets || count($pakets) === 0) {
+    die('Paket tidak ditemukan.');
+}
+
+$userId = $_SESSION['userId'] ?? null;
+
+if (!$userId) {
+    // Pengguna belum login
+    header("Location: login.html");
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validasi input
-    $firstName = trim($_POST['firstName']);
-    $lastName = trim($_POST['lastName']);
-    $phone = trim($_POST['phone']);
-    $countryCode = trim($_POST['countryCode']);
-    $paket_id = trim($_POST['paket_id']);
-    $pickupAddress = trim($_POST['pickupAddress']);
-    $deliveryAddress = trim($_POST['deliveryAddress']);
+    $firstName = $_POST['firstName'] ?? '';
+    $lastName = $_POST['lastName'] ?? '';
+    $countryCode = $_POST['countryCode'] ?? '';
+    $phone = $_POST['phone'] ?? '';
+    $pickupAddress = $_POST['pickupAddress'] ?? '';
+    $deliveryAddress = $_POST['deliveryAddress'] ?? '';
+    $paketId = $_POST['paket_id'] ?? null;
     $agreement = isset($_POST['agreement']);
 
-    // Validasi
-    if (empty($firstName)) {
-        $errors[] = "Nama depan harus diisi.";
-    }
-    if (empty($lastName)) {
-        $errors[] = "Nama belakang harus diisi.";
-    }
-    if (empty($phone)) {
-        $errors[] = "Nomor telepon harus diisi.";
-    }
-    if (empty($paket_id)) {
-        $errors[] = "Pilih paket laundry.";
-    }
-    if (empty($pickupAddress)) {
-        $errors[] = "Alamat penjemputan harus diisi.";
-    }
-    if (empty($deliveryAddress)) {
-        $errors[] = "Alamat pengantaran harus diisi.";
-    }
-    if (!$agreement) {
-        $errors[] = "Anda harus setuju dengan syarat dan ketentuan.";
+    $errors = [];
+
+    // Validasi input
+    if (!$firstName || !$lastName || !$phone || !$pickupAddress || !$deliveryAddress || !$paketId || !$agreement) {
+        $errors[] = 'Semua bidang wajib diisi dan setujui syarat & ketentuan.';
     }
 
-    // Jika tidak ada error, simpan data ke database
     if (empty($errors)) {
-        // Ambil user_id dari session (pastikan user sudah login)
-        if (!isset($_SESSION['userId'])) {
-            $errors[] = "User  ID tidak ditemukan. Silakan login.";
-        } else {
-            $user_id = $_SESSION['userId'];
-// Simpan pesanan ke database
-$query = "INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan) 
-          VALUES (:user_id, :nama_depan, :nama_belakang, :nomer_telepon, :alamat_penjemputan, :alamat_pengantaran, 'Pending')";
-$stmt = $pdo->prepare($query);
-$stmt->bindParam(':user_id', $user_id); // Use 'user_id' instead of 'userid'
-$stmt->bindParam(':nama_depan', $firstName);
-$stmt->bindParam(':nama_belakang', $lastName);
-$stmt->bindParam(':nomer_telepon', $phone);
-$stmt->bindParam(':alamat_penjemputan', $pickupAddress);
-$stmt->bindParam(':alamat_pengantaran', $deliveryAddress);
+        // Simpan ke tabel checkout_orders
+        $stmt = $pdo->prepare("INSERT INTO checkout_orders (first_name, last_name, country_code, phone, pickup_address, delivery_address, user_id) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$firstName, $lastName, $countryCode, $phone, $pickupAddress, $deliveryAddress, $userId]);
 
-if ($stmt->execute()) {
-    // Ambil ID pesanan yang baru saja dibuat
-    $order_id = $pdo->lastInsertId();
+        // Simpan ke tabel orders
+        $stmt2 = $pdo->prepare("INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan, paket_id) 
+                                VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)");
+        $stmt2->execute([$userId, $firstName, $lastName, $phone, $pickupAddress, $deliveryAddress, $paketId]);
 
-    // Simpan paket yang dipilih ke tabel order_paket
-    $query = "INSERT INTO order_paket (id_order, id_paket) VALUES (:id_order, :id_paket)";
-    $stmt = $pdo->prepare($query);
-    $stmt->bindParam(':id_order', $order_id);
-    $stmt->bindParam(':id_paket', $paket_id);
-    $stmt->execute();
+        $orderId = $pdo->lastInsertId(); // Ambil ID dari tabel 'orders'
 
-    // Redirect atau tampilkan pesan sukses
-    header("Location: pembayaran.php"); // Ganti dengan halaman sukses yang sesuai
-    exit();
-} else {
-    $errors[] = "Terjadi kesalahan saat menyimpan pesanan. Silakan coba lagi.";
-}
+        // Simpan ke tabel order_paket
+        $stmt3 = $pdo->prepare("INSERT INTO order_paket (id_order, id_paket) VALUES (?, ?)");
+        $stmt3->execute([$orderId, $paketId]);
+
+        // Redirect ke halaman pembayaran
+        header("Location: pembayaran.php?order_id=$orderId");
+        exit;
+    } else {
+        foreach ($errors as $error) {
+            echo "<p class='text-red-500'>$error</p>";
         }
     }
 }
+
 
 // Mengambil ID paket yang dipilih dari URL, jika ada
 $selectedPaketId = isset($_GET['id']) ? $_GET['id'] : null;
@@ -138,7 +122,7 @@ if (!$selectedPaketId) {
             <input type="text" id="firstName" name="firstName" value="<?= htmlspecialchars($_POST['firstName'] ?? '') ?>" class="h-12 w-full border border-gray-300 rounded-md px-3 text-sm" />
         </div>
         <div>
-            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Nama Belakang </label>
+            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Nama Belakang</label>
             <input type="text" id="lastName" name="lastName" value="<?= htmlspecialchars($_POST['lastName'] ?? '') ?>" class="h-12 w-full border border-gray-300 rounded-md px-3 text-sm" />
         </div>
     </div>
@@ -154,13 +138,16 @@ if (!$selectedPaketId) {
     </div>
 
     <div class="mb-6">
-    <label for="paket_id" class="block text-sm font-medium text-gray-700 mb-1">Pilih Paket Laundry</label>
-    <select id="paket_id" name="paket_id" class="h-12 w-full border border-gray-300 rounded-md px-3 text-sm">
-        <option value="">-- Pilih Paket --</option>
-        <?php foreach ($pakets as $paket): ?>
-            <option value="<?= htmlspecialchars($paket['id']) ?>"><?= htmlspecialchars($paket['nama_paket']) ?></option>
-        <?php endforeach; ?>
-    </select>
+        <label for="paket_id" class="block text-sm font-medium text-gray-700 mb-1">Pilih Paket Laundry</label>
+        <select id="paket_id" name="paket_id" class="...">
+    <option value="">-- Pilih Paket --</option>
+    <?php foreach ($pakets as $paket): ?>
+        <option value="<?= htmlspecialchars($paket['id']) ?>" <?= ($_POST['paket_id'] ?? '') == $paket['id'] ? 'selected' : '' ?>>
+            <?= htmlspecialchars($paket['nama_paket']) ?> - <?= htmlspecialchars($paket['harga']) ?>
+        </option>
+    <?php endforeach; ?>
+</select>
+
     </div>
 
     <div class="mb-6">
@@ -189,11 +176,10 @@ if (!$selectedPaketId) {
     <?php endif; ?>
 
     <div class="flex justify-end">
-    <a href="pembayaran.php?paket_id=<?= $paket['id']; ?>" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md text-sm font-semibold">
-        Checkout
-    </a>
-</div>
-
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-md text-sm font-semibold">
+            Checkout
+        </button>
+    </div>
 </form>
 </div>
 <footer class="xl:mt-16 mx-auto w-full relative text-center bg-bar text-white">

@@ -1,26 +1,36 @@
 <?php
 // Sertakan file query.php untuk memanggil fungsi simpanKonfirmasiPembayaran
 include 'query.php';
+include 'config.php'; // pastikan koneksi $pdo tersedia
 session_start();
 
-// Pastikan kita mendapatkan paket_id dari URL
-$paketId = $_GET['paket_id'] ?? null;
+$orderId = $_GET['order_id'] ?? null;
 
-if ($paketId) {
-    // Ambil data paket berdasarkan paket_id dari database (misalnya menggunakan PDO)
-    $stmt = $pdo->prepare("SELECT * FROM paket WHERE id = :paketId");
-    $stmt->execute(['paketId' => $paketId]);
-    $selectedPackage = $stmt->fetch(PDO::FETCH_ASSOC);
-} else {
-    // Jika paket_id tidak ada, tampilkan pesan error
-    die("Paket tidak ditemukan.");
+if (!$orderId) {
+    die('Order tidak ditemukan.');
 }
 
-// Jika $selectedPackage tidak ditemukan, beri peringatan
-if (!$selectedPackage) {
-    die("Paket tidak ditemukan di database.");
+// Ambil data dari tabel orders (karena ID yang dipakai dari orders)
+$stmt = $pdo->prepare("SELECT o.*, c.first_name, c.last_name, c.phone, c.pickup_address, c.delivery_address 
+                       FROM orders o
+                       JOIN checkout_orders c ON o.user_id = c.user_id
+                       WHERE o.id = ?
+                       ORDER BY c.id DESC LIMIT 1");
+$stmt->execute([$orderId]);
+$order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$order) {
+    die("Order tidak ditemukan.");
 }
 
+// Ambil data paket dari tabel orders berdasarkan nama dan telepon
+$stmt2 = $pdo->prepare("SELECT o.*, p.nama_paket, p.harga
+                        FROM orders o
+                        JOIN paket p ON o.paket_id = p.id
+                        WHERE o.nama_depan = ? AND o.nomer_telepon = ?
+                        ORDER BY o.id DESC LIMIT 1");
+$stmt2->execute([$order['first_name'], $order['phone']]);
+$selectedPackage = $stmt2->fetch(PDO::FETCH_ASSOC);
 
 // Proses jika form disubmit
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -34,22 +44,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (!$agreement1 || !$agreement2) {
         echo "<p class='text-red-500'>Anda harus menyetujui semua persyaratan.</p>";
     } else {
-        // Simpan konfirmasi pembayaran ke database
-        $isSaved = simpanKonfirmasiPembayaran($pdo, $paymentMethod, $agreement1, $agreement2);
+        // 1. Simpan konfirmasi pembayaran
+        $isSaved = simpanKonfirmasiPembayaran($pdo, $orderId, $paymentMethod, $agreement1, $agreement2);
 
-        // Menampilkan hasil setelah simpan
         if ($isSaved) {
+            // 2. Update status orders agar muncul di riwayat
+            $updateStatus = $pdo->prepare("UPDATE orders SET status_pemesanan = 'Menunggu Pembayaran' WHERE nama_depan = ? AND nomer_telepon = ?");
+            $updateStatus->execute([$order['first_name'], $order['phone']]);
+
+            // 3. Feedback ke user
             echo "<div class='w-full lg:w-2/3 bg-white shadow-lg rounded-lg p-8'>
                     <h2 class='text-2xl font-bold text-gray-800 mb-6'>Pembayaran Dikonfirmasi</h2>
                     <p class='text-lg text-gray-800'>Pembayaran dengan metode <strong>$paymentMethod</strong> telah berhasil dikonfirmasi!</p>
                     <br>
-                    <a href='checkout.php' class='text-green-600'>Kembali ke halaman sebelumnya</a>
+                    <a href='riwayat_transaksi.php' class='text-green-600'>Lihat Riwayat Transaksi</a>
                   </div>";
         } else {
             echo "<p class='text-red-500'>Gagal menyimpan konfirmasi pembayaran. Coba lagi nanti.</p>";
         }
     }
 }
+
 ?>
 
 
@@ -136,38 +151,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <div class="w-full lg:w-1/3 bg-white shadow-lg rounded-lg p-6">
   <h2 class="text-xl font-semibold mb-4">Rincian Pesanan</h2>
   <div class="flex gap-4 mb-4">
-    <!-- Menampilkan gambar paket -->
     <img src="<?= htmlspecialchars($selectedPackage['gambar'] ?? 'https://via.placeholder.com/100') ?>" alt="Paket" class="w-24 h-24 object-cover rounded-md">
-    
     <div class="flex flex-col justify-between">
-      <!-- Nama Paket -->
       <h3 class="text-sm font-semibold"><?= htmlspecialchars($selectedPackage['nama_paket']) ?></h3>
-
-      <!-- Rating Paket -->
       <div class="flex items-center text-yellow-500 text-xs">
         <i class="fas fa-star mr-1"></i> <?= htmlspecialchars($selectedPackage['rating'] ?? '4.5') ?>
       </div>
-
-      <!-- Harga Sebelumnya dan Harga Diskon -->
       <p class="text-sm text-gray-600 line-through">Rp. 10.000</p>
-      <p class="text-sm text-gray-600">
-    Rp. <?= number_format((float)str_replace(['Rp', '.', ','], ['', '', ''], $selectedPackage['harga']), 0, ',', '.') ?>
-</p>
-
+      <p class="text-sm text-gray-800 font-semibold">
+        Rp. <?= number_format((float)str_replace(['Rp', '.', ','], ['', '', ''], $selectedPackage['harga']), 0, ',', '.') ?>
+      </p>
     </div>
-  </div>
-
-  <!-- Tombol Lihat Bukti Pesanan -->
-  <a href="/invoice.php?paket_id=<?= htmlspecialchars($selectedPackage['id']) ?>">
-    <button class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md text-sm font-medium mb-3">
-      Lihat Bukti Pesanan
-    </button>
-  </a>
-
-  <!-- Total Harga -->
-  <div class="flex justify-between text-sm font-semibold">
-    <span>Total Harga</span>
-    <span class="text-green-600">Rp <?= number_format((float)str_replace(['Rp', '.', ','], ['', '', ''], $selectedPackage['harga']), 0, ',', '.') ?></span>
   </div>
 </div>
 <?php endif; ?>

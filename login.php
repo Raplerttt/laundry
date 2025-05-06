@@ -1,7 +1,7 @@
 <?php
 
 include('query.php');  // Memanggil query.php untuk menggunakan fungsi getUserByEmail
-
+session_start();
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Mendapatkan input email dan password dari form
     $email = $_POST['email'];

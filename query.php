@@ -90,23 +90,37 @@ function getUserByEmail($email) {
     return $stmt->fetch(PDO::FETCH_ASSOC);  // Mengembalikan hasil query
 }
 
-// Fungsi untuk membuat pesanan
-function createOrder($user_id, $nama_depan, $nama_belakang, $nomer_telepon, $alamat_penjemputan, $alamat_pengantaran, $status_pemesanan) {
-    global $conn;
+function createOrder($conn, $user_id, $nama_depan, $nama_belakang, $nomer_telepon, $alamat_penjemputan, $alamat_pengantaran, $status_pemesanan = 'Pending') {
+    try {
+        $query = "INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan) 
+                  VALUES (:user_id, :nama_depan, :nama_belakang, :nomer_telepon, :alamat_penjemputan, :alamat_pengantaran, :status_pemesanan)";
+        $stmt = $conn->prepare($query);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->bindParam(':nama_depan', $nama_depan);
+        $stmt->bindParam(':nama_belakang', $nama_belakang);
+        $stmt->bindParam(':nomer_telepon', $nomer_telepon);
+        $stmt->bindParam(':alamat_penjemputan', $alamat_penjemputan);
+        $stmt->bindParam(':alamat_pengantaran', $alamat_pengantaran);
+        $stmt->bindParam(':status_pemesanan', $status_pemesanan);
 
-    // Query untuk menyimpan pesanan
-    $query = "INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan) VALUES (:user_id, :nama_depan, :nama_belakang, :nomer_telepon, :alamat_penjemputan, :alamat_pengantaran, :status_pemesanan)";
+        if ($stmt->execute()) {
+            return $conn->lastInsertId(); // Kembalikan ID pesanan yang baru dibuat
+        } else {
+            return false;
+        }
+    } catch (PDOException $e) {
+        return false; // atau $e->getMessage() jika ingin tahu error-nya
+    }
+}
+
+function addOrderPaket($conn, $order_id, $paket_id) {
+    $query = "INSERT INTO order_paket (id_order, id_paket) VALUES (:id_order, :id_paket)";
     $stmt = $conn->prepare($query);
-    $stmt->bindParam(':user_id', $user_id);
-    $stmt->bindParam(':nama_depan', $nama_depan);
-    $stmt->bindParam(':nama_belakang', $nama_belakang);
-    $stmt->bindParam(':nomer_telepon', $nomer_telepon);
-    $stmt->bindParam(':alamat_penjemputan', $alamat_penjemputan);
-    $stmt->bindParam(':alamat_pengantaran', $alamat_pengantaran);
-    $stmt->bindParam(':status_pemesanan', $status_pemesanan);
-
+    $stmt->bindParam(':id_order', $order_id);
+    $stmt->bindParam(':id_paket', $paket_id);
     return $stmt->execute();
 }
+
 
 // Fungsi untuk mendapatkan pesanan
 function getOrder($order_id) {
@@ -138,16 +152,19 @@ function getTransactionHistory($pdo, $userId) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function simpanKonfirmasiPembayaran($pdo, $paymentMethod, $agreement1, $agreement2) {
-    $query = "INSERT INTO payment_confirmations (payment_method, agreement1, agreement2) 
-              VALUES (:payment_method, :agreement1, :agreement2)";
+
+function simpanKonfirmasiPembayaran($pdo, $orderId, $paymentMethod, $agreement1, $agreement2) {
+    $query = "INSERT INTO payment_confirmations (order_id, payment_method, agreement1, agreement2) 
+              VALUES (:order_id, :payment_method, :agreement1, :agreement2)";
     $stmt = $pdo->prepare($query);
+    $stmt->bindParam(':order_id', $orderId);
     $stmt->bindParam(':payment_method', $paymentMethod);
-    $stmt->bindParam(':agreement1', $agreement1);
-    $stmt->bindParam(':agreement2', $agreement2);
+    $stmt->bindParam(':agreement1', $agreement1, PDO::PARAM_BOOL);
+    $stmt->bindParam(':agreement2', $agreement2, PDO::PARAM_BOOL);
     $stmt->execute();
-    return $stmt->rowCount() > 0;  // Mengembalikan true jika data berhasil disimpan
+    return $stmt->rowCount() > 0;
 }
+
 
 function getAllReviews() {
     global $pdo; // penting agar fungsi bisa pakai $pdo dari luar

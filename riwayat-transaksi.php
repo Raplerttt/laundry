@@ -59,35 +59,35 @@ $transactions = getTransactionHistory($pdo, $userId);
                 <th class="p-2 border-b border-gray-300">Aksi</th>
             </tr>
         </thead>
-        <tbody>
-            <?php if (empty($transactions)): ?>
-                <tr>
-                    <td colspan="4" class="p-2 text-center">Tidak ada riwayat transaksi.</td>
-                </tr>
-            <?php else: ?>
-                <?php foreach ($transactions as $index => $transaction): ?>
-                    <tr>
-                        <td class="p-2 border-b border-gray-200 border-r border-gray-300"><?= $index + 1 ?></td>
-                        <td class="p-2 border-b border-gray-200 border-r border-gray-300"><?= htmlspecialchars($transaction['nama_paket']) ?></td>
-                        <td class="p-2 border-b border-gray-200 border-r border-gray-300 font-semibold">
-                            <?= htmlspecialchars($transaction['status_pemesanan']) ?>
-                        </td>
-                        <td class="p-2 border-b border-gray-200 space-x-1">
-                            <?php if ($transaction['status_pemesanan'] === 'Menunggu Pembayaran'): ?>
-                                <a href="bayar.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Bayar Sekarang</a>
-                                <a href="bukti.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-gray-200 rounded text-xs">Lihat Bukti Pesanan</a>
+<tbody>
+    <?php if (empty($transactions)): ?>
+        <tr>
+            <td colspan="4" class="p-2 text-center">Tidak ada riwayat transaksi.</td>
+        </tr>
+    <?php else: ?>
+        <?php foreach ($transactions as $index => $transaction): ?>
+            <tr>
+                <td class="p-2 border-b border-gray-200 border-r border-gray-300"><?= $index + 1 ?></td>
+                <td class="p-2 border-b border-gray-200 border-r border-gray-300"><?= htmlspecialchars($transaction['nama_paket']) ?></td>
+                <td class="p-2 border-b border-gray-200 border-r border-gray-300 font-semibold">
+                    <?= htmlspecialchars($transaction['status_pemesanan']) ?>
+                </td>
+                <td class="p-2 border-b border-gray-200 space-x-1">
+                    <?php if ($transaction['status_pemesanan'] === 'Menunggu Pembayaran'): ?>
+                        <a href="bayar.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Bayar Sekarang</a>
+                        <a href="bukti.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-gray-200 rounded text-xs">Lihat Bukti Pesanan</a>
 
-                            <?php elseif ($transaction['status_pemesanan'] === 'Selesai'): ?>
-                                <a href="ulasan.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">Beri Ulasan</a>
+                    <?php elseif ($transaction['status_pemesanan'] === 'Selesai'): ?>
+                        <a href="ulasan.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs">Beri Ulasan</a>
 
-                            <?php else: ?>
-                                <span class="text-gray-400 text-xs italic">Menunggu Konfirmasi Admin</span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </tbody>
+                    <?php else: ?>
+                        <span class="text-gray-400 text-xs italic">Menunggu Konfirmasi Admin</span>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</tbody>
     </table>
 </section>
 

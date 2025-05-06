@@ -5,7 +5,7 @@ session_start();
 
 if (!isset($_SESSION['isLoggedIn']) || $_SESSION['isLoggedIn'] !== true) {
   // Jika belum login, arahkan ke halaman login
-  header("Location: login.php");
+  header("Location: login.html");
   exit;
 }
 
