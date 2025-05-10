@@ -1,7 +1,13 @@
 <?php
-
 include('query.php');  // Memanggil query.php untuk menggunakan fungsi getUserByEmail
+include('modal.php');  // Memasukkan modal.php yang berisi modal
+
 session_start();
+
+$modalType = 'error'; // Tipe modal: 'error'
+$modalMessage = '';    // Pesan akan diset dinamis
+$modalVisible = false; // Modal disembunyikan secara default
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Mendapatkan input email dan password dari form
     $email = $_POST['email'];
@@ -28,10 +34,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                   </script>";
             exit();
         } else {
-            echo "Password salah.";
+            // Jika password salah, tampilkan modal dengan pesan kesalahan
+            $modalMessage = 'Password salah.';
+            $modalVisible = true; // Set modal visible
         }
     } else {
-        echo "Email tidak ditemukan.";
+        // Jika email tidak ditemukan
+        $modalMessage = 'Email tidak ditemukan.';
+        $modalVisible = true; // Set modal visible
     }
 }
 ?>

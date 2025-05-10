@@ -49,7 +49,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if ($isSaved) {
             // 2. Update status orders agar muncul di riwayat
-            $updateStatus = $pdo->prepare("UPDATE orders SET status_pemesanan = 'Menunggu Pembayaran' WHERE nama_depan = ? AND nomer_telepon = ?");
+            $updateStatus = $pdo->prepare("UPDATE orders SET status_pemesanan = 'Pending' WHERE nama_depan = ? AND nomer_telepon = ?");
             $updateStatus->execute([$order['first_name'], $order['phone']]);
 
             // 3. Feedback ke user

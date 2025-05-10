@@ -21,12 +21,16 @@
                 <!-- Desktop User Info -->
                 <div class="hidden sm:flex sm:items-center" id="user-info-desktop">
                     <button class="relative text-white hover:text-black px-3 py-2 rounded-md text-sm font-medium">
+                        <a href="notification.html">
                         <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.992 2.992 0 0019 14V9a7 7 0 10-14 0v5a2.992 2.992 0 00-.595 1.595L3 17h5m4 0h-4" />
                         </svg>
+                        </a>
                         <span class="absolute top-0 right-0 inline-flex items-center justify-center w-3 h-3 bg-red-500 rounded-full"></span>
                     </button>
-                    <img src="path/to/avatar.jpg" alt="Avatar" class="h-8 w-8 rounded-full ml-4" id="user-avatar-desktop">
+                    <a href="edit-profile.php">
+                        <img src="path/to/avatar.jpg" alt="Avatar" class="h-8 w-8 rounded-full ml-4 cursor-pointer" id="user-avatar-desktop">
+                    </a>
                     <!-- Logout Button -->
                     <a href="/logout.php">
                     <button id="logout-button-desktop" class="ml-4 text-white hover:text-black px-3 py-2 rounded-md text-sm font-medium">Logout</button>

@@ -1,17 +1,16 @@
 <?php
 include 'query.php';
+include 'config.php';
+
 session_start();
 if (!isset($_SESSION['userId'])) {
     // Redirect ke halaman login atau tampilkan pesan error
     header("Location: login.html");
     exit;
 }
-
 $userId = $_SESSION['userId'];
 $transactions = getTransactionHistory($pdo, $userId);
 ?>
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,7 +73,7 @@ $transactions = getTransactionHistory($pdo, $userId);
                 </td>
                 <td class="p-2 border-b border-gray-200 space-x-1">
                     <?php if ($transaction['status_pemesanan'] === 'Menunggu Pembayaran'): ?>
-                        <a href="bayar.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Bayar Sekarang</a>
+                      <a href="pembayaran.php?order_id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-green-200 text-green-800 rounded text-xs">Bayar Sekarang</a>
                         <a href="bukti.php?id=<?= $transaction['id'] ?>" class="px-2 py-1 bg-gray-200 rounded text-xs">Lihat Bukti Pesanan</a>
 
                     <?php elseif ($transaction['status_pemesanan'] === 'Selesai'): ?>

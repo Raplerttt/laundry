@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Simpan ke tabel orders
         $stmt2 = $pdo->prepare("INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan, paket_id) 
-                                VALUES (?, ?, ?, ?, ?, ?, 'PENDING', ?)");
+                                VALUES (?, ?, ?, ?, ?, ?, 'Menunggu Pembayaran', ?)");
         $stmt2->execute([$userId, $firstName, $lastName, $phone, $pickupAddress, $deliveryAddress, $paketId]);
 
         $orderId = $pdo->lastInsertId(); // Ambil ID dari tabel 'orders'
@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt3->execute([$orderId, $paketId]);
 
         // Redirect ke halaman pembayaran
-        header("Location: pembayaran.php?order_id=$orderId");
+        header("Location: riwayat-transaksi.php");
         exit;
     } else {
         foreach ($errors as $error) {
