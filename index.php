@@ -1,12 +1,20 @@
 <?php
 include 'config.php';
 include 'query.php';
+
 session_start();
 
 if (!isset($_SESSION['isLoggedIn']) || $_SESSION['isLoggedIn'] !== true) {
   // Jika belum login, arahkan ke halaman login
   header("Location: login.html");
   exit;
+}
+
+// Jika pengguna sudah login, periksa apakah pengguna adalah admin
+if ($_SESSION['userEmail'] === 'admin@bundalaundry.com') {
+    // Jika admin, arahkan ke halaman admin
+    header("Location: admin.php");
+    exit;
 }
 
 try {

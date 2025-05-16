@@ -44,16 +44,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         // Simpan ke tabel checkout_orders
-        $stmt = $pdo->prepare("INSERT INTO checkout_orders (first_name, last_name, country_code, phone, pickup_address, delivery_address, user_id) 
-                               VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$firstName, $lastName, $countryCode, $phone, $pickupAddress, $deliveryAddress, $userId]);
+        $stmt = $pdo->prepare("INSERT INTO checkout_orders 
+            (first_name, last_name, country_code, phone, pickup_address, delivery_address, paket_id, user_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$firstName, $lastName, $countryCode, $phone, $pickupAddress, $deliveryAddress, $paketId, $userId]);
+
 
         // Simpan ke tabel orders
         $stmt2 = $pdo->prepare("INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan, paket_id) 
-                                VALUES (?, ?, ?, ?, ?, ?, 'Menunggu Pembayaran', ?)");
+                                VALUES (?, ?, ?, ?, ?, ?, 'Menunggu Konfirmasi Admin', ?)");
         $stmt2->execute([$userId, $firstName, $lastName, $phone, $pickupAddress, $deliveryAddress, $paketId]);
 
         $orderId = $pdo->lastInsertId(); // Ambil ID dari tabel 'orders'
+
+$stmtCheck = $pdo->prepare("SELECT status_pemesanan FROM orders WHERE id = ?");
+$stmtCheck->execute([$orderId]);
+$status = $stmtCheck->fetchColumn();
+
+echo "Status setelah insert: " . $status;
+
 
         // Simpan ke tabel order_paket
         $stmt3 = $pdo->prepare("INSERT INTO order_paket (id_order, id_paket) VALUES (?, ?)");

@@ -1,12 +1,7 @@
 <?php
 include('query.php');  // Memanggil query.php untuk menggunakan fungsi getUserByEmail
-include('modal.php');  // Memasukkan modal.php yang berisi modal
 
 session_start();
-
-$modalType = 'error'; // Tipe modal: 'error'
-$modalMessage = '';    // Pesan akan diset dinamis
-$modalVisible = false; // Modal disembunyikan secara default
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Mendapatkan input email dan password dari form
@@ -20,7 +15,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Memeriksa password pengguna
         if (password_verify($password, $user['password'])) {
             // Login berhasil
-            // Set sesi pengguna
             $_SESSION['isLoggedIn'] = true;
             $_SESSION['userEmail'] = $email;
             $_SESSION['userId'] = $user['id'];
@@ -30,21 +24,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     sessionStorage.setItem('isLoggedIn', 'true');
                     sessionStorage.setItem('userEmail', '$email');
                     sessionStorage.setItem('userId', '" . $user['id'] . "');
-                    window.location.href = 'index.php';  // Redirect ke halaman utama setelah login
                   </script>";
+
+            // Redirect sesuai jenis user
+            if ($email === 'admin@bundalaundry.com') {
+                echo "<script>window.location.href = 'admin.php';</script>";
+            } else {
+                echo "<script>window.location.href = 'index.php';</script>";
+            }
             exit();
         } else {
-            // Jika password salah, tampilkan modal dengan pesan kesalahan
-            $modalMessage = 'Password salah.';
-            $modalVisible = true; // Set modal visible
+            // Password salah
+            echo "<script>alert('Password salah'); window.location.href = 'login.php';</script>";
         }
     } else {
-        // Jika email tidak ditemukan
-        $modalMessage = 'Email tidak ditemukan.';
-        $modalVisible = true; // Set modal visible
+        // Email tidak ditemukan
+        echo "<script>alert('Email tidak ditemukan'); window.location.href = 'login.php';</script>";
     }
 }
 ?>
+
 
 
 <!DOCTYPE html>
@@ -99,21 +98,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
           </div>
         </div>
-</nav>
-<div class="w-full">
-    <div class="w-full">
-      <section class="relative w-full flex items-center justify-center text-center">
-        <div class="relative w-full">
-          <img class="w-full h-100 object-cover rounded-md" src="https://images.unsplash.com/photo-1680725779155-456faadefa26" alt="Random image">
-          <div class="absolute inset-0 bg-gray-700 opacity-60 rounded-md"></div>
-          <div class="absolute inset-0 flex items-center justify-center">
-            <h2 class="text-white text-3xl font-bold">Masuk</h2>
+      </nav>
+      <div class="w-full">
+          <div class="w-full">
+            <section class="relative w-full flex items-center justify-center text-center">
+              <div class="relative w-full">
+                <img class="w-full h-100 object-cover rounded-md" src="https://images.unsplash.com/photo-1680725779155-456faadefa26" alt="Random image">
+                <div class="absolute inset-0 bg-gray-700 opacity-60 rounded-md"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <h2 class="text-white text-3xl font-bold">Masuk</h2>
+                </div>
+              </div>
+            </section>
           </div>
-        </div>
-      </section>
-    </div>
-</div>
-<div class="flex flex-col md:flex-row min-h-screen">
+      </div>
+      <div class="flex flex-col md:flex-row min-h-screen">
         <!-- Form Section -->
         <div class="w-full md:w-1/2 bg-gray-100 p-8 flex items-center justify-center">
           <div class="max-w-sm w-full text-gray-600 space-y-5">

@@ -90,7 +90,7 @@ function getUserByEmail($email) {
     return $stmt->fetch(PDO::FETCH_ASSOC);  // Mengembalikan hasil query
 }
 
-function createOrder($conn, $user_id, $nama_depan, $nama_belakang, $nomer_telepon, $alamat_penjemputan, $alamat_pengantaran, $status_pemesanan = 'Pending') {
+function createOrder($conn, $user_id, $nama_depan, $nama_belakang, $nomer_telepon, $alamat_penjemputan, $alamat_pengantaran, $status_pemesanan = 'Menunggu Konfirmasi Admin') {
     try {
         $query = "INSERT INTO orders (user_id, nama_depan, nama_belakang, nomer_telepon, alamat_penjemputan, alamat_pengantaran, status_pemesanan) 
                   VALUES (:user_id, :nama_depan, :nama_belakang, :nomer_telepon, :alamat_penjemputan, :alamat_pengantaran, :status_pemesanan)";
@@ -135,22 +135,26 @@ function getOrder($order_id) {
 }
 
 function getTransactionHistory($pdo, $userId) {
-    $query = "SELECT 
-                o.id,
-                o.status_pemesanan,
-                p.nama_paket
-              FROM orders o
-              JOIN order_paket op ON o.id = op.id_order
-              JOIN paket p ON op.id_paket = p.id
-              WHERE o.user_id = :user_id
-              ORDER BY o.id DESC";
+    $query = "
+      SELECT 
+        o.id,
+        o.status_pemesanan,
+        p.id AS paket_id,
+        p.nama_paket
+      FROM orders o
+      LEFT JOIN paket p ON o.paket_id = p.id
+      WHERE o.user_id = :user_id
+      ORDER BY o.id DESC
+    ";
 
     $stmt = $pdo->prepare($query);
-    $stmt->bindParam(':user_id', $userId);
+    $stmt->bindParam(':user_id', $userId, PDO::PARAM_INT);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+
+
 
 
 function simpanKonfirmasiPembayaran($pdo, $orderId, $paymentMethod, $agreement1, $agreement2) {
@@ -167,13 +171,19 @@ function simpanKonfirmasiPembayaran($pdo, $orderId, $paymentMethod, $agreement1,
 
 
 function getAllReviews() {
-    global $pdo; // penting agar fungsi bisa pakai $pdo dari luar
+    global $pdo;
 
     try {
-        $sql = "SELECT r.*, u.full_name AS name, u.email
-                FROM rating r
-                JOIN users u ON r.id_user = u.id
+        $sql = "SELECT 
+                    r.*, 
+                    u.full_name AS name, 
+                    u.email,
+                    p.nama_paket
+                FROM reviews r
+                JOIN users u ON r.user_id = u.id
+                JOIN paket p ON r.item_id = p.id
                 ORDER BY r.created_at DESC";
+
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -212,6 +222,27 @@ function addUlasan($user_id, $item_id, $rating, $review_text) {
         return true;
     } else {
         echo "Terjadi kesalahan saat menambahkan ulasan.";
+        return false;
+    }
+}
+
+function updateOrderStatus($pdo, $orderId, $newStatus) {
+    // Query untuk memperbarui status pesanan
+    $query = "UPDATE orders SET status_pemesanan = :new_status WHERE id = :order_id";
+
+    // Persiapkan statement
+    $stmt = $pdo->prepare($query);
+
+    // Bind parameter
+    $stmt->bindParam(':new_status', $newStatus);
+    $stmt->bindParam(':order_id', $orderId);
+
+    // Eksekusi query
+    if ($stmt->execute()) {
+        // Mengembalikan nilai true jika berhasil
+        return true;
+    } else {
+        // Mengembalikan nilai false jika gagal
         return false;
     }
 }

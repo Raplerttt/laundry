@@ -1,5 +1,24 @@
 <?php
-(isset($_SESSION['isLoggedIn']) && $_SESSION['isLoggedIn'])
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+include('config.php'); // Pastikan di sini sudah ada $pdo koneksi database
+
+// Cek login
+if (!isset($_SESSION['isLoggedIn']) || $_SESSION['isLoggedIn'] !== true) {
+    // misal redirect login atau set userEmail kosong
+    $userEmail = null;
+} else {
+    $userEmail = $_SESSION['userEmail'];
+}
+
+if ($userEmail) {
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_email = :email AND is_read = FALSE");
+    $stmt->execute(['email' => $userEmail]);
+    $unreadCount = $stmt->fetchColumn();
+} else {
+    $unreadCount = 0;
+}
 ?>
 <nav class="bg-bar shadow-lg fixed w-full z-10">
     <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
@@ -20,14 +39,17 @@
             <div class="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
                 <!-- Desktop User Info -->
                 <div class="hidden sm:flex sm:items-center" id="user-info-desktop">
-                    <button class="relative text-white hover:text-black px-3 py-2 rounded-md text-sm font-medium">
-                        <a href="notification.html">
-                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.992 2.992 0 0019 14V9a7 7 0 10-14 0v5a2.992 2.992 0 00-.595 1.595L3 17h5m4 0h-4" />
-                        </svg>
-                        </a>
-                        <span class="absolute top-0 right-0 inline-flex items-center justify-center w-3 h-3 bg-red-500 rounded-full"></span>
-                    </button>
+                <button class="relative text-white hover:text-black px-3 py-2 rounded-md text-sm font-medium">
+    <a href="notification.php" class="flex items-center">
+      <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.992 2.992 0 0019 14V9a7 7 0 10-14 0v5a2.992 2.992 0 00-.595 1.595L3 17h5m4 0h-4" />
+      </svg>
+      <?php if ($unreadCount > 0): ?>
+        <span class="absolute top-0 right-0 inline-flex items-center justify-center w-3 h-3 bg-red-500 rounded-full"></span>
+      <?php endif; ?>
+    </a>
+</button>
+
                     <a href="edit-profile.php">
                         <img src="path/to/avatar.jpg" alt="Avatar" class="h-8 w-8 rounded-full ml-4 cursor-pointer" id="user-avatar-desktop">
                     </a>

@@ -1,11 +1,21 @@
 <?php
 session_start();
-include('config.php'); // koneksi PDO $pdo
+include('config.php');
 include('query.php');
 
 // Fungsi cek apakah admin
 function checkAdmin() {
     return isset($_SESSION['userEmail']) && $_SESSION['userEmail'] === 'admin@bundalaundry.com';
+}
+
+// Jika ada parameter ID dari detail transaksi
+if (isset($_GET['id'])) {
+    $id = $_GET['id'];
+
+    // Query data transaksi berdasarkan ID
+    $stmt = $pdo->prepare("SELECT * FROM checkout_orders WHERE id = ?");
+    $stmt->execute([$id]);
+    $detail = $stmt->fetch();
 }
 
 // Redirect jika bukan admin
@@ -15,109 +25,20 @@ if (!checkAdmin()) {
 }
 
 // Ambil email dari session
-$email = $_SESSION['userEmail'] ?? null;
+$email = $_SESSION['userEmail'];
 
-// Ambil data user admin dari DB berdasar email session
-$user = false;
-if ($email) {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-$username = $user['username'] ?? 'Admin';
+// Ambil nama admin dari DB
+$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+$stmt->execute([$id]);
+$user = $stmt->fetch(PDO::FETCH_ASSOC);
+$username = $user ? $user['username'] : 'Admin';
 
-// Jika ada parameter ID dari detail transaksi
-$detail = null;
-if (isset($_GET['id'])) {
-    $id = intval($_GET['id']);
-    $stmt = $pdo->prepare("SELECT * FROM checkout_orders WHERE id = ?");
-    $stmt->execute([$id]);
-    $detail = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
-// Handle update berat dan harga ongkir dari form POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    // Update berat dan harga ongkir dan ubah status pesanan jadi "Menunggu Pembayaran"
-    if (isset($_POST['id'], $_POST['berat'], $_POST['harga_ongkir'])) {
-        $id = intval($_POST['id']);
-        $berat = floatval($_POST['berat']);
-        $harga_ongkir = intval($_POST['harga_ongkir']);
-
-        try {
-            $pdo->beginTransaction();
-        
-            // Update berat dan ongkir di checkout_orders
-            $stmt1 = $pdo->prepare("UPDATE checkout_orders SET berat = :berat, harga_ongkir = :harga_ongkir WHERE id = :id");
-            $stmt1->execute([
-                ':berat' => $berat,
-                ':harga_ongkir' => $harga_ongkir,
-                ':id' => $id
-            ]);
-        
-            // Update status pesanan di orders jadi 'Menunggu Pembayaran'
-            $stmt2 = $pdo->prepare("UPDATE orders SET status_pemesanan = 'Menunggu Pembayaran' WHERE id = :id");
-            $stmt2->execute([':id' => $id]);
-        
-            // Ambil user_email dari tabel orders berdasarkan id pesanan
-            $stmtEmail = $pdo->prepare("
-                SELECT u.email 
-                FROM users u 
-                JOIN orders o ON u.id = o.user_id 
-                WHERE o.id = :id
-                LIMIT 1
-            ");
-            $stmtEmail->execute([':id' => $id]);
-            $userEmail = $stmtEmail->fetchColumn();
-        
-            if ($userEmail) {
-                // Insert notifikasi
-                $message = "Pesanan Anda dengan ID #$id telah diperbarui menjadi 'Menunggu Pembayaran'. Berat dan ongkir telah diperbarui.";
-                $stmt3 = $pdo->prepare("
-                    INSERT INTO notifications (user_email, message, created_at, is_read) 
-                    VALUES (:user_email, :message, CURRENT_TIMESTAMP, FALSE)
-                ");
-                $stmt3->execute([
-                    ':user_email' => $userEmail,
-                    ':message' => $message
-                ]);
-            }
-        
-            $pdo->commit();
-        
-            header("Location: super_admin.php?success=1");
-            exit;
-        
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            echo "Gagal update dan kirim notifikasi: " . $e->getMessage();
-        }            
-    }
-
-    // Update status pesanan manual (opsional)
-    if (
-        isset($_POST['action']) && $_POST['action'] === 'update_order_status' &&
-        isset($_POST['order_id'], $_POST['new_status'])
-    ) {
-        $orderId = intval($_POST['order_id']);
-        $newStatus = $_POST['new_status'];
-
-        $stmt = $pdo->prepare("UPDATE orders SET status_pemesanan = :status WHERE id = :id");
-        if ($stmt->execute(['status' => $newStatus, 'id' => $orderId])) {
-            header("Location: manage_orders.php?success=1");
-            exit;
-        } else {
-            echo "<script>alert('Gagal memperbarui status');</script>";
-        }
-    }
-}
-
-// Ambil total user (kecuali admin)
+// Hitung total user (selain admin)
 $stmt_total = $pdo->prepare("SELECT COUNT(*) FROM users WHERE email != 'admin@bundalaundry.com'");
 $stmt_total->execute();
 $totalUsers = $stmt_total->fetchColumn();
 
-// Ambil daftar user (kecuali admin)
+// Ambil daftar user (selain admin)
 $stmt_users = $pdo->prepare("SELECT id, username, email, status FROM users WHERE email != 'admin@bundalaundry.com'");
 $stmt_users->execute();
 $users = $stmt_users->fetchAll(PDO::FETCH_ASSOC);
@@ -127,7 +48,6 @@ $stmt_orders = $pdo->prepare("SELECT * FROM orders ORDER BY id DESC");
 $stmt_orders->execute();
 $orders = $stmt_orders->fetchAll(PDO::FETCH_ASSOC);
 
-// Ambil transaksi dengan join paket
 $stmt_transactions = $pdo->prepare("
     SELECT co.*, p.nama_paket 
     FROM checkout_orders co
@@ -136,28 +56,74 @@ $stmt_transactions = $pdo->prepare("
 $stmt_transactions->execute();
 $transactions = $stmt_transactions->fetchAll(PDO::FETCH_ASSOC);
 
-// Ambil daftar paket
+
 $stmt_pakets = $pdo->prepare ("SELECT * FROM paket ORDER BY id ASC");
 $stmt_pakets->execute();
 $pakets = $stmt_pakets->fetchAll(PDO::FETCH_ASSOC);
 
-// Hitung jumlah pesanan dengan status tertentu
-function countOrdersByStatus($pdo, $status) {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE status_pemesanan = ?");
-    $stmt->execute([$status]);
-    return $stmt->fetchColumn();
+// Handle update status pesanan
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (
+        isset($_POST['action']) && $_POST['action'] === 'update_order_status' &&
+        isset($_POST['order_id'], $_POST['new_status'])
+    ) {
+        $orderId = $_POST['order_id'];
+        $newStatus = $_POST['new_status'];
+
+        $query = "UPDATE orders SET status_pemesanan = :status WHERE id = :id";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(':status', $newStatus);
+        $stmt->bindParam(':id', $orderId);
+
+        if ($stmt->execute()) {
+            echo "<script>window.location.href='manage_orders.php?success=1';</script>";
+            exit;
+        } else {
+            echo "<script>alert('Gagal memperbarui status');</script>";
+        }
+    }
 }
 
-$confirmedCount = countOrdersByStatus($pdo, 'Dikonfirmasi');
-$processingCount = countOrdersByStatus($pdo, 'Diproses');
-$cancelledCount = countOrdersByStatus($pdo, 'Dibatalkan');
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id = intval($_POST['id']);
+    $berat = floatval($_POST['berat']);
+    $harga_ongkir = intval($_POST['harga_ongkir']);
 
-// Hitung total transaksi
+    $stmt = $pdo->prepare("UPDATE checkout_orders SET berat = :berat, harga_ongkir = :harga_ongkir WHERE id = :id");
+    $stmt->execute([
+        'berat' => $berat,
+        'harga_ongkir' => $harga_ongkir,
+        'id' => $id
+    ]);
+
+    header("Location: super_admin.php?success=1");
+    exit;
+}
+
+// Ambil jumlah pesanan yang dikonfirmasi
+$query_confirmed = "SELECT COUNT(*) AS confirmed_count FROM orders WHERE status_pemesanan = 'Dikonfirmasi'";
+$stmt_confirmed = $pdo->prepare($query_confirmed);
+$stmt_confirmed->execute();
+$confirmedCount = $stmt_confirmed->fetchColumn();
+
+// Ambil jumlah pesanan yang diproses
+$query_processing = "SELECT COUNT(*) AS processing_count FROM orders WHERE status_pemesanan = 'Diproses'";
+$stmt_processing = $pdo->prepare($query_processing);
+$stmt_processing->execute();
+$processingCount = $stmt_processing->fetchColumn();
+
+// Ambil jumlah pesanan yang dibatalkan
+$query_cancelled = "SELECT COUNT(*) AS cancelled_count FROM orders WHERE status_pemesanan = 'Dibatalkan'";
+$stmt_cancelled = $pdo->prepare($query_cancelled);
+$stmt_cancelled->execute();
+$cancelledCount = $stmt_cancelled->fetchColumn();
+
+// Hitung jumlah transaksi
 $stmt_count = $pdo->prepare("SELECT COUNT(*) FROM checkout_orders");
 $stmt_count->execute();
 $totalTransactions = $stmt_count->fetchColumn();
 
-// Hitung total nominal transaksi (harga paket)
+// Hitung total nominal transaksi
 $query_total = "
     SELECT SUM(CAST(REPLACE(p.harga, 'Rp.', '') AS DECIMAL(10, 2))) AS total_transactions
     FROM orders o
@@ -168,12 +134,14 @@ $stmt_total_nominal = $pdo->prepare($query_total);
 $stmt_total_nominal->execute();
 $totalNominalTransactions = $stmt_total_nominal->fetchColumn();
 
-// Hitung total paket
-$stmt_total_paket = $pdo->prepare("SELECT COUNT(*) FROM paket");
+$query_total_paket = "
+    SELECT COUNT(*) AS total_paket
+    FROM paket
+";
+$stmt_total_paket = $pdo->prepare($query_total_paket);
 $stmt_total_paket->execute();
 $totalPaket = $stmt_total_paket->fetchColumn();
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -320,15 +288,17 @@ $totalPaket = $stmt_total_paket->fetchColumn();
                 </div>
 
                 <a href="#" 
-                   @click.prevent="activePage = 'laporan keuangan'; sidebarOpen = false" 
+                   @click.prevent="activePage = 'analytics'; sidebarOpen = false" 
                    class="flex items-center px-4 py-2 text-gray-100 hover:bg-gray-700"
-                   :class="{ 'bg-gray-700': activePage === 'laporan keuangan' }">
-                    <i class="fas fa-chart-bar mr-3"></i>laporan keuangan
+                   :class="{ 'bg-gray-700': activePage === 'analytics' }">
+                    <i class="fas fa-chart-bar mr-3"></i>Analytics
                 </a>
-                <a href="/logout.php" class="flex items-center px-4 py-2 text-gray-100 hover:bg-gray-700">
+                <a href="/logout.php" 
+                   @click.prevent="activePage = 'logout'; sidebarOpen = false" 
+                   class="flex items-center px-4 py-2 text-gray-100 hover:bg-gray-700"
+                   :class="{ 'bg-gray-700': activePage === 'logout' }">
                     <i class="fas fa-sign-out-alt mr-3"></i>Logout
                 </a>
-
             </nav>
         </aside>
 
@@ -565,13 +535,11 @@ $totalPaket = $stmt_total_paket->fetchColumn();
 
           <!-- Tombol edit yang buka modal -->
           <button 
-  class="edit-btn text-yellow-600 hover:text-yellow-900 font-semibold bg-transparent border-none p-0 cursor-pointer" 
-  data-id="<?= htmlspecialchars($trx['id']); ?>"
-  data-berat="<?= htmlspecialchars($trx['berat'] !== null ? $trx['berat'] : '0'); ?>"
-  data-harga_ongkir="<?= htmlspecialchars($trx['harga_ongkir'] !== null ? $trx['harga_ongkir'] : '0'); ?>"
->Edit</button>
-
-
+            class="edit-btn text-yellow-600 hover:text-yellow-900 font-semibold bg-transparent border-none p-0 cursor-pointer" 
+            data-id="<?= htmlspecialchars($trx['id']); ?>"
+            data-berat="<?= htmlspecialchars($trx['berat'] ?? ''); ?>"
+            data-harga_ongkir="<?= htmlspecialchars($trx['harga_ongkir'] ?? ''); ?>"
+          >Edit</button>
 
           <form action="hapus_transaksi.php" method="POST" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus transaksi ini?');" class="inline">
             <input type="hidden" name="id" value="<?= htmlspecialchars($trx['id']); ?>">
@@ -618,6 +586,7 @@ $totalPaket = $stmt_total_paket->fetchColumn();
     </form>
   </div>
 </div>
+
                 </div>
                 </div>
                 <!-- daftar-layanan Content -->
@@ -673,75 +642,19 @@ $totalPaket = $stmt_total_paket->fetchColumn();
                     </form>
                     </div>
                 </div>
+                <!-- General Settings Content -->
+                <div x-show="activePage === 'general'">
+                    <h1 class="text-2xl font-bold mb-6">General Settings</h1>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <p>This is the General Settings page content</p>
+                    </div>
+                </div>
 
                 <!-- Security Settings Content -->
                 <div x-show="activePage === 'security'">
                     <h1 class="text-2xl font-bold mb-6">Security Settings</h1>
                     <div class="bg-white p-6 rounded-lg shadow">
-                    <div x-data="{
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-    message: '',
-    changePassword() {
-        if (this.newPassword !== this.confirmPassword) {
-            this.message = 'New passwords do not match.';
-            return;
-        }
-
-        fetch('change_password.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                old_password: this.oldPassword,
-                new_password: this.newPassword,
-                confirm_password: this.confirmPassword
-            })
-        })
-        .then(async res => {
-            console.log('Response status:', res.status);
-            const data = await res.json();
-            console.log('Response data:', data);
-
-            this.message = data.message || 'No message from server.';
-
-            if (!res.ok) {
-                this.message = `Error (${res.status}): ${data.message || 'Unknown error'}`;
-            }
-
-            this.oldPassword = '';
-            this.newPassword = '';
-            this.confirmPassword = '';
-        })
-        .catch(err => {
-            this.message = 'An error occurred.';
-            console.error('Fetch error:', err);
-        });
-    }
-}">
-    <h1 class="text-2xl font-bold mb-6">Security Settings</h1>
-    <div class="bg-white p-6 rounded-lg shadow space-y-4">
-        <div>
-            <label class="block text-gray-700">Old Password</label>
-            <input type="password" x-model="oldPassword" class="w-full mt-1 p-2 border rounded" />
-        </div>
-        <div>
-            <label class="block text-gray-700">New Password</label>
-            <input type="password" x-model="newPassword" class="w-full mt-1 p-2 border rounded" />
-        </div>
-        <div>
-            <label class="block text-gray-700">Confirm New Password</label>
-            <input type="password" x-model="confirmPassword" class="w-full mt-1 p-2 border rounded" />
-        </div>
-        <button
-            @click="changePassword"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-        >
-            Change Password
-        </button>
-        <p x-text="message" class="text-sm mt-2 text-red-600"></p>
-    </div>
-</div>
+                        <p>This is the Security Settings page content</p>
                     </div>
                 </div>
 
@@ -749,96 +662,30 @@ $totalPaket = $stmt_total_paket->fetchColumn();
                 <div x-show="activePage === 'notifications'">
                     <h1 class="text-2xl font-bold mb-6">Notifications Settings</h1>
                     <div class="bg-white p-6 rounded-lg shadow">
-                    <div style="max-width: 600px; margin: 2rem auto; padding: 1.5rem; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);">
-  <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 1rem;">Notification Settings (Admin)</h1>
-  
-  <label for="userEmail" style="font-weight: 600;">User Email:</label><br />
-  <input id="userEmail" type="email" placeholder="Enter user email" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #ccc;" />
-  
-  <label for="templateSelect" style="font-weight: 600;">Choose Template:</label><br />
-  <select id="templateSelect" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #ccc;">
-    <option value="">-- Select Template --</option>
-    <option value="promo">Promo: Diskon 20% untuk pembelian paket bulan ini!</option>
-    <option value="reminder">Reminder: Jangan lupa bayar tagihan sebelum tanggal jatuh tempo.</option>
-    <option value="thanks">Thank You: Terima kasih telah menggunakan layanan kami.</option>
-  </select>
-  
-  <label for="customMessage" style="font-weight: 600;">Or Custom Message:</label><br />
-  <textarea id="customMessage" rows="4" placeholder="Type your message here..." style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid #ccc;"></textarea>
-  
-  <button id="sendNotificationBtn" style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer;">
-    Send Notification
-  </button>
-
-  <p id="statusMessage" style="margin-top: 1rem; color: green; font-weight: 600;"></p>
-</div>
+                        <p>This is the Notifications Settings page content</p>
                     </div>
                 </div>
 
                 <!-- Analytics Content -->
-                <div x-show="activePage === 'laporan keuangan'">
-                <div x-data="laporanKeuanganApp()" class="p-6 bg-white rounded-lg shadow">
-    <h1 class="text-2xl font-bold mb-6">Laporan Keuangan</h1>
+                <div x-show="activePage === 'analytics'">
+                    <h1 class="text-2xl font-bold mb-6">Analytics</h1>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <p>This is the Analytics page content</p>
+                    </div>
+                </div>
 
-    <form @submit.prevent="fetchLaporan">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div>
-                <label for="startDate" class="block text-sm font-medium text-gray-700">Dari Tanggal</label>
-                <input type="date" id="startDate" x-model="startDate" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-            </div>
-            <div>
-                <label for="endDate" class="block text-sm font-medium text-gray-700">Sampai Tanggal</label>
-                <input type="date" id="endDate" x-model="endDate" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required />
-            </div>
-            <div class="flex items-end">
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md">
-                    Tampilkan
-                </button>
-            </div>
-            <div class="flex items-end">
-                <button type="button" @click="window.print()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md">
-                    Cetak
-                </button>
-            </div>
-        </div>
-    </form>
-
-    <div class="overflow-x-auto">
-        <table class="min-w-full border text-sm">
-            <thead class="bg-gray-100">
-                <tr>
-                    <th class="border px-4 py-2">Tahun</th>
-                    <th class="border px-4 py-2">Bulan</th>
-                    <th class="border px-4 py-2">Pemasukan</th>
-                    <th class="border px-4 py-2">Pengeluaran</th>
-                    <th class="border px-4 py-2">Laba</th>
-                </tr>
-            </thead>
-            <tbody>
-                <template x-if="laporanKeuangan.length === 0">
-                    <tr>
-                        <td colspan="5" class="text-center px-4 py-4 text-gray-500">Tidak ada data</td>
-                    </tr>
-                </template>
-                <template x-for="laporan in laporanKeuangan" :key="laporan.tahun + '-' + laporan.bulan">
-                    <tr>
-                        <td class="border px-4 py-2" x-text="laporan.tahun"></td>
-                        <td class="border px-4 py-2" x-text="laporan.bulan"></td>
-                        <td class="border px-4 py-2" x-text="formatRupiah(laporan.pemasukan)"></td>
-                        <td class="border px-4 py-2" x-text="formatRupiah(laporan.pengeluaran)"></td>
-                        <td class="border px-4 py-2" x-text="formatRupiah(laporan.laba)"></td>
-                    </tr>
-                </template>
-            </tbody>
-        </table>
-    </div>
-</div>
-</div>
+                <!-- Logout Content -->
+                <div x-show="activePage === 'logout'">
+                    <h1 class="text-2xl font-bold mb-6">Logout</h1>
+                    <div class="bg-white p-6 rounded-lg shadow">
+                        <p>You have been logged out</p>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
-    <!-- Panggil file JS eksternal -->
-    <script src="editTransactionModal.js"></script>
 </body>
+<!-- Panggil file JS eksternal -->
+<script src="editTransactionModal.js"></script>
 
 </html>

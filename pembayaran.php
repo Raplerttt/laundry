@@ -1,72 +1,109 @@
 <?php
-// Sertakan file query.php untuk memanggil fungsi simpanKonfirmasiPembayaran
-include 'query.php';
-include 'config.php'; // pastikan koneksi $pdo tersedia
+// update_pembayaran.php
+
 session_start();
 
+// Sertakan file koneksi dan fungsi
+include 'config.php';       // Pastikan ada variabel $pdo koneksi PDO
+include 'query.php';        // Fungsi simpanKonfirmasiPembayaran()
+
+// Ambil order_id dari parameter GET
 $orderId = $_GET['order_id'] ?? null;
 
-if (!$orderId) {
-    die('Order tidak ditemukan.');
+if (!$orderId || !is_numeric($orderId)) {
+    die('Order tidak ditemukan atau ID tidak valid.');
 }
 
-// Ambil data dari tabel orders (karena ID yang dipakai dari orders)
-$stmt = $pdo->prepare("SELECT o.*, c.first_name, c.last_name, c.phone, c.pickup_address, c.delivery_address 
-                       FROM orders o
-                       JOIN checkout_orders c ON o.user_id = c.user_id
-                       WHERE o.id = ?
-                       ORDER BY c.id DESC LIMIT 1");
-$stmt->execute([$orderId]);
-$order = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    // Ambil data order + data checkout_orders terkait user_id, termasuk berat & harga_ongkir
+    $stmt = $pdo->prepare("
+        SELECT o.*, c.first_name, c.last_name, c.phone, c.pickup_address, c.delivery_address, c.berat, c.harga_ongkir
+        FROM orders o
+        JOIN checkout_orders c ON o.user_id = c.user_id
+        WHERE o.id = ?
+        ORDER BY c.id DESC
+        LIMIT 1
+    ");
+    $stmt->execute([$orderId]);
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$order) {
-    die("Order tidak ditemukan.");
+    if (!$order) {
+        die("Order tidak ditemukan.");
+    }
+
+    // Ambil data paket berdasarkan paket_id yang ada di orders, sekaligus rata-rata rating dari reviews
+    $stmt2 = $pdo->prepare("
+        SELECT p.nama_paket, p.harga, p.gambar, COALESCE(AVG(r.rating), 0) AS avg_rating
+        FROM paket p
+        LEFT JOIN reviews r ON r.item_id = p.id
+        WHERE p.id = ?
+        GROUP BY p.id
+        LIMIT 1
+    ");
+    $stmt2->execute([$order['paket_id']]);
+    $selectedPackage = $stmt2->fetch(PDO::FETCH_ASSOC);
+
+    if (!$selectedPackage) {
+        die("Data paket tidak ditemukan.");
+    }
+
+    // Hitung total harga: (harga paket * berat) + ongkir
+    // Bersihkan harga paket dari format Rp dan titik ribuan, lalu konversi ke float
+    $harga_paket_clean = (float) str_replace(['Rp', '.', ','], ['', '', ''], $selectedPackage['harga']);
+    $berat = isset($order['berat']) ? (float)$order['berat'] : 1;
+    $harga_ongkir = isset($order['harga_ongkir']) ? (float)$order['harga_ongkir'] : 0;
+    $total_harga = ($harga_paket_clean * $berat) + $harga_ongkir;
+
+} catch (PDOException $e) {
+    die("Terjadi kesalahan database: " . $e->getMessage());
 }
 
-// Ambil data paket dari tabel orders berdasarkan nama dan telepon
-$stmt2 = $pdo->prepare("SELECT o.*, p.nama_paket, p.harga
-                        FROM orders o
-                        JOIN paket p ON o.paket_id = p.id
-                        WHERE o.nama_depan = ? AND o.nomer_telepon = ?
-                        ORDER BY o.id DESC LIMIT 1");
-$stmt2->execute([$order['first_name'], $order['phone']]);
-$selectedPackage = $stmt2->fetch(PDO::FETCH_ASSOC);
-
-// Proses jika form disubmit
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $paymentMethod = $_POST['paymentMethod'] ?? '';
+// Proses form konfirmasi pembayaran
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    // Ambil input dengan filter dan validasi
+    $paymentMethod = trim($_POST['paymentMethod'] ?? '');
     $agreement1 = isset($_POST['agreement1']);
     $agreement2 = isset($_POST['agreement2']);
 
-    // Validasi input
-    if (empty($paymentMethod)) {
-        echo "<p class='text-red-500'>Metode pembayaran belum dipilih!</p>";
-    } elseif (!$agreement1 || !$agreement2) {
-        echo "<p class='text-red-500'>Anda harus menyetujui semua persyaratan.</p>";
-    } else {
-        // 1. Simpan konfirmasi pembayaran
+    // Validasi
+    $errors = [];
+    if ($paymentMethod === '') {
+        $errors[] = "Metode pembayaran belum dipilih!";
+    }
+    if (!$agreement1 || !$agreement2) {
+        $errors[] = "Anda harus menyetujui semua persyaratan.";
+    }
+
+    if (empty($errors)) {
+        // Simpan konfirmasi pembayaran melalui fungsi di query.php
         $isSaved = simpanKonfirmasiPembayaran($pdo, $orderId, $paymentMethod, $agreement1, $agreement2);
 
         if ($isSaved) {
-            // 2. Update status orders agar muncul di riwayat
-            $updateStatus = $pdo->prepare("UPDATE orders SET status_pemesanan = 'Pending' WHERE nama_depan = ? AND nomer_telepon = ?");
-            $updateStatus->execute([$order['first_name'], $order['phone']]);
+            // Update status pemesanan jadi "Selesai"
+            $updateStatus = $pdo->prepare("UPDATE orders SET status_pemesanan = 'Selesai' WHERE id = ?");
+            $updateStatus->execute([$orderId]);
 
-            // 3. Feedback ke user
+            // Tampilkan pesan sukses dan link ke riwayat transaksi
             echo "<div class='w-full lg:w-2/3 bg-white shadow-lg rounded-lg p-8'>
                     <h2 class='text-2xl font-bold text-gray-800 mb-6'>Pembayaran Dikonfirmasi</h2>
-                    <p class='text-lg text-gray-800'>Pembayaran dengan metode <strong>$paymentMethod</strong> telah berhasil dikonfirmasi!</p>
+                    <p class='text-lg text-gray-800'>Pembayaran dengan metode <strong>" . htmlspecialchars($paymentMethod) . "</strong> telah berhasil dikonfirmasi!</p>
                     <br>
-                    <a href='riwayat_transaksi.php' class='text-green-600'>Lihat Riwayat Transaksi</a>
+                    <a href='riwayat_transaksi.php' class='text-green-600 underline'>Lihat Riwayat Transaksi</a>
                   </div>";
+            exit;
         } else {
-            echo "<p class='text-red-500'>Gagal menyimpan konfirmasi pembayaran. Coba lagi nanti.</p>";
+            $errors[] = "Gagal menyimpan konfirmasi pembayaran. Coba lagi nanti.";
+        }
+    }
+
+    // Jika ada error, tampilkan semua pesan error
+    if (!empty($errors)) {
+        foreach ($errors as $error) {
+            echo "<p class='text-red-500'>{$error}</p>";
         }
     }
 }
-
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -159,9 +196,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
       </div>
       <p class="text-sm text-gray-600 line-through">Rp. 10.000</p>
       <p class="text-sm text-gray-800 font-semibold">
-        Rp. <?= number_format((float)str_replace(['Rp', '.', ','], ['', '', ''], $selectedPackage['harga']), 0, ',', '.') ?>
+        Rp. <?= number_format($harga_paket_clean, 0, ',', '.') ?>
       </p>
     </div>
+  </div>
+
+  <!-- Detail berat dan harga ongkir -->
+  <div class="text-sm text-gray-700 mb-2">
+    Berat: <span class="font-semibold"><?= htmlspecialchars($berat) ?> kg</span>
+  </div>
+  <div class="text-sm text-gray-700 mb-4">
+    Harga Ongkir: <span class="font-semibold">Rp. <?= number_format($harga_ongkir, 0, ',', '.') ?></span>
+  </div>
+  
+  <!-- Tampilkan total harga -->
+  <div class="border-t pt-4 mt-4 text-right text-lg font-bold">
+    Total: Rp. <?= number_format($total_harga, 0, ',', '.') ?>
   </div>
 </div>
 <?php endif; ?>

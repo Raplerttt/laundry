@@ -2,23 +2,13 @@
 session_start();
 require_once 'config.php';
 
-// Ambil user yang sedang login
-$userId = $_SESSION['user_id'] ?? null;
-$user = [];
-
-if ($userId) {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id");
-    $stmt->execute(['id' => $userId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $name = $_POST['name']; // pastikan <input name="name">
+  $name = $_POST['full-name'];  // samakan dengan input form
   $phone = $_POST['phone'];
   $email = $_POST['email'];
   $password = $_POST['password'];
 
-  // Hash password jika tidak kosong
+  // Hash password jika diisi
   $hashedPassword = !empty($password) ? password_hash($password, PASSWORD_DEFAULT) : null;
 
   $sql = "UPDATE users SET name = :name, nomer_telepon = :phone, email = :email";
@@ -41,6 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   $stmt->execute($params);
+
+  // Refresh user data setelah update agar form tampil data baru
+  $stmt = $pdo->prepare("SELECT * FROM users WHERE id = :id");
+  $stmt->execute(['id' => $userId]);
+  $user = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 ?>
@@ -105,10 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <form action="" method="POST">
     <!-- Full Name -->
     <div class="mb-4">
-        <label for="full-name" class="block text-sm font-medium">Nama Lengkap</label>
-        <input type="text" id="full-name" name="full-name" class="w-full p-3 mt-1 rounded-md border border-gray-200"
-            value="<?= htmlspecialchars($user['name'] ?? '') ?>" required />
-    </div>
+    <label for="full-name" class="block text-sm font-medium">Nama Lengkap</label>
+    <input type="text" id="full-name" name="full-name" class="w-full p-3 mt-1 rounded-md border border-gray-200"
+        value="<?= htmlspecialchars($user['name'] ?? '') ?>" required />
+</div>
 
     <!-- Phone Number -->
     <div class="mb-4">
